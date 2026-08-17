@@ -20,6 +20,23 @@ export class ServerTools implements ToolExecutor {
                 }
             },
 
+            // 1.5 Preview control - start a browser/simulator preview
+            {
+                name: 'preview_start',
+                description: 'PREVIEW START: Trigger Cocos Creator preview (build current scene and open it in the preview target). USAGE: Call with optional "platform" to choose target (e.g. "web-desktop", "web-mobile", "android", "ios", "windows"). Omit "platform" to use the editor\'s last selected preview platform. This is a fire-and-forget action; the preview runs in its own process and the tool returns immediately with success/failure of the launch request.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        platform: {
+                            type: 'string',
+                            enum: ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac'],
+                            description: 'Target platform for the preview. Defaults to "web-desktop" if omitted. Must match one of the platforms available in your project\'s build settings.'
+                        }
+                    },
+                    required: []
+                }
+            },
+
             // 2. Server Connectivity Testing - Network and connectivity
             {
                 name: 'server_connectivity',
@@ -52,6 +69,8 @@ export class ServerTools implements ToolExecutor {
                 return await this.handleServerInformation(args);
             case 'server_connectivity':
                 return await this.handleServerConnectivity(args);
+            case 'preview_start':
+                return await this.handlePreviewStart(args);
             default:
                 throw new Error(`Unknown tool: ${toolName}`);
         }
@@ -246,6 +265,27 @@ export class ServerTools implements ToolExecutor {
                 return await this.getNetworkInterfaces();
             default:
                 return { success: false, error: `Unknown server connectivity action: ${action}` };
+        }
+    }
+
+    private async handlePreviewStart(args: any): Promise<ToolResponse> {
+        const platform: string = args.platform || 'web-desktop';
+        try {
+            // preview:start launches the preview in its own process (browser/simulator).
+            // Use send (fire-and-forget) so we don't block on the long-running preview process.
+            await Editor.Message.send('preview', 'start', { platform });
+            return {
+                success: true,
+                data: {
+                    platform: platform,
+                    message: `Preview launch requested for platform "${platform}". The preview will open in its target (browser/simulator).`
+                }
+            };
+        } catch (err: any) {
+            return {
+                success: false,
+                error: `Failed to start preview for platform "${platform}": ${err.message}`
+            };
         }
     }
 
